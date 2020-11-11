@@ -120,6 +120,7 @@ def parse_twix_header(header_string):
     # get the scan parameters
     frequency_matches = [
         r"<ParamLong.\"Frequency\">  { \d*  }",
+        r"<ParamLong.\"lFrequency\">  { \d*  }",
         r"<ParamDouble.\"MainFrequency\">  { (.+)}\n"
     ]
     for frequency_pattern in frequency_matches:
@@ -133,6 +134,7 @@ def parse_twix_header(header_string):
         raise KeyError("Unable to identify Frequency from header")
     dwell_time_matches = [
         r"<ParamLong.\"DwellTimeSig\">  { \d*  }",
+        r"<ParamLong.\"alDwellTime\">\s*{\s*(\d*)\s",
         r"<ParamDouble.\"DwellTime\">  { (.+)}"
     ]
     for dwell_time_match in dwell_time_matches:
@@ -152,21 +154,82 @@ def parse_twix_header(header_string):
     tr = float(re.search(r"(alTR\[0\]\s*=\s*)(\d+)", header_string).group(2)) / 1000
 
     # get voxel size
-    ro_fov = read_double("VoI_RoFOV", header_string)
-    pe_fov = read_double("VoI_PeFOV", header_string)
-    slice_thickness = read_double("VoI_SliceThickness", header_string)
+    try:
+        ro_fov = read_double("VoI_RoFOV", header_string)
+        pe_fov = read_double("VoI_PeFOV", header_string)
+        slice_thickness = read_double("VoI_SliceThickness", header_string)
 
-    # get position information
-    pos_sag = read_double("VoI_Position_Sag", header_string)
-    pos_cor = read_double("VoI_Position_Cor", header_string)
-    pos_tra = read_double("VoI_Position_Tra", header_string)
+        # get position information
+        pos_sag = read_double("VoI_Position_Sag", header_string)
+        pos_cor = read_double("VoI_Position_Cor", header_string)
+        pos_tra = read_double("VoI_Position_Tra", header_string)
 
-    # get orientation information
-    in_plane_rot = read_double("VoI_InPlaneRotAngle", header_string)
-    normal_sag = read_double("VoI_Normal_Sag", header_string)
-    normal_cor = read_double("VoI_Normal_Cor", header_string)
-    normal_tra = read_double("VoI_Normal_Tra", header_string)
+        # get orientation information
+        in_plane_rot = read_double("VoI_InPlaneRotAngle", header_string)
+        normal_sag = read_double("VoI_Normal_Sag", header_string)
+        normal_cor = read_double("VoI_Normal_Cor", header_string)
+        normal_tra = read_double("VoI_Normal_Tra", header_string)
+    except Exception:
+        voi_map_match = r"<ParamMap.\"sVoI\">\s*{[\s\S]*"
+        pos_match = r"<ParamMap.\"sPosition\">\s*{[\s\S]*"
+        normal_match = r"<ParamMap.\"sNormal\">\s*{[\s\S]*"
+        ro_fov = re.findall(
+            voi_map_match + r"<ParamDouble.\"dReadoutFOV\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s",
+            header_string
+        )
+        pe_fov = re.findall(
+            voi_map_match + r"<ParamDouble.\"dPhaseFOV\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s",
+            header_string
+        )
+        slice_thickness = re.findall(
+            voi_map_match + r"<ParamDouble.\"dThickness\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s",
+            header_string
+        )
+        print(ro_fov)
+        ro_fov = ro_fov.group(1) if ro_fov else 0
+        print(ro_fov)
+        pe_fov = (pe_fov.group(1)) if pe_fov else 0
+        slice_thickness = (slice_thickness.group(1)) if slice_thickness else 0
 
+        pos_sag = re.findall(
+            voi_map_match + pos_match + r"<ParamDouble.\"dSag\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        pos_cor = re.findall(
+            voi_map_match + pos_match + r"<ParamDouble.\"dCor\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        pos_tra = re.findall(
+            voi_map_match + pos_match + r"<ParamDouble.\"dTra\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        pos_sag = (pos_sag.group(1)) if pos_sag else 0
+        pos_cor = (pos_cor.group(1)) if pos_cor else 0
+        pos_tra = (pos_tra.group(1)) if pos_tra else 0
+        print(pos_sag)
+
+        in_plane_rot = re.findall(
+            voi_map_match + r"<ParamDouble.\"dInPlaneRot\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s",
+            header_string
+        )
+        normal_sag = re.findall(
+            voi_map_match + normal_match + r"<ParamDouble.\"dSag\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        normal_cor = re.findall(
+            voi_map_match + normal_match + r"<ParamDouble.\"dCor\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        normal_tra = re.findall(
+            voi_map_match + normal_match + r"<ParamDouble.\"dTra\">\s*{\s*<Precision> \d+\s*([[0-9]*[.]?[0-9]*]{0,})\s", 
+            header_string
+        )
+        in_plane_rot = (in_plane_rot.group(1)) if in_plane_rot else 0
+        normal_sag = (normal_sag.group(1)) if normal_sag else 0
+        normal_cor = (normal_cor.group(1)) if normal_cor else 0
+        normal_tra = (normal_tra.group(1)) if normal_tra else 0
+        print(in_plane_rot)
+        print(normal_sag)
     # the orientation is stored in a somewhat strange way - a normal vector and
     # a rotation angle. to get the row vector, we first use Gram-Schmidt to
     # make [-1, 0, 0] (the default row vector) orthogonal to the normal, and
